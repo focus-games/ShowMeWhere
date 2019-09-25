@@ -1,23 +1,22 @@
 /**
- * Copyright (c) 2015-present, Facebook, Inc.
- * All rights reserved.
+ * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
  */
 
 #import "ARTSolidColor.h"
 
+#import <React/RCTLog.h>
+
 #import "RCTConvert+ART.h"
-#import "RCTLog.h"
 
 @implementation ARTSolidColor
 {
   CGColorRef _color;
 }
 
-- (instancetype)initWithArray:(NSArray *)array
+- (instancetype)initWithArray:(NSArray<NSNumber *> *)array
 {
   if ((self = [super initWithArray:array])) {
     _color = CGColorRetain([RCTConvert CGColor:array offset:1]);

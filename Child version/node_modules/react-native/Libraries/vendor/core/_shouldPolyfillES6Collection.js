@@ -1,78 +1,66 @@
 /**
- * @generated SignedSource<<6c1a82d2f5918f03f3f0e5825e1f32f3>>
+ * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
- * !! This file is a check-in of a static_upstream project!      !!
- * !!                                                            !!
- * !! You should not modify this file directly. Instead:         !!
- * !! 1) Use `fjs use-upstream` to temporarily replace this with !!
- * !!    the latest version from upstream.                       !!
- * !! 2) Make your changes, test them, etc.                      !!
- * !! 3) Use `fjs push-upstream` to copy your changes back to    !!
- * !!    static_upstream.                                        !!
- * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
  *
- * Copyright 2013-2014 Facebook, Inc.
- * @providesModule _shouldPolyfillES6Collection
+ * @format
  * @preventMunge
- * @typechecks
+ * @flow strict
  */
 
+'use strict';
+
 /**
- * Given a collection class name (Map or Set) return whether it's safe to use
- * the native polyfill.
- *
- * @param {string} collectionName
+ * Checks whether a collection name (e.g. "Map" or "Set") has a native polyfill
+ * that is safe to be used.
  */
-function shouldPolyfillES6Collection(collectionName) {
-  var Collection = global[collectionName];
+function _shouldActuallyPolyfillES6Collection(collectionName: string): boolean {
+  const Collection = global[collectionName];
   if (Collection == null) {
     return true;
   }
 
-  var proto = Collection.prototype;
+  // The iterator protocol depends on `Symbol.iterator`. If a collection is
+  // implemented, but `Symbol` is not, it's going to break iteration because
+  // we'll be using custom "@@iterator" instead, which is not implemented on
+  // native collections.
+  if (typeof global.Symbol !== 'function') {
+    return true;
+  }
 
-  // These checks are adapted from es6-shim https://fburl.com/34437854
-  return Collection == null ||
+  const proto = Collection.prototype;
+
+  // These checks are adapted from es6-shim: https://fburl.com/34437854
+  // NOTE: `isCallableWithoutNew` and `!supportsSubclassing` are not checked
+  // because they make debugging with "break on exceptions" difficult.
+  return (
+    Collection == null ||
     typeof Collection !== 'function' ||
     typeof proto.clear !== 'function' ||
     new Collection().size !== 0 ||
     typeof proto.keys !== 'function' ||
-    typeof proto.forEach !== 'function' ||
-    isCallableWithoutNew(Collection) ||
-    !supportsSubclassing(Collection);
+    typeof proto.forEach !== 'function'
+  );
 }
+
+const cache: {[name: string]: boolean} = {};
 
 /**
- * Given a class can we subclass it?
- *
- * @param {function} Collection
+ * Checks whether a collection name (e.g. "Map" or "Set") has a native polyfill
+ * that is safe to be used and caches this result.
+ * Make sure to make a first call to this function before a corresponding
+ * property on global was overriden in any way.
  */
-function supportsSubclassing(Collection) {
-  class SubCollection extends Collection {}
-  try {
-    var s = (new SubCollection([]));
-    // Firefox 32 will throw a type error when any operation is called on a
-    // subclass.
-    s.size;
-    return s instanceof Collection;
-  } catch (e) {
-    return false;
+function _shouldPolyfillES6Collection(collectionName: string) {
+  let result = cache[collectionName];
+  if (result !== undefined) {
+    return result;
   }
+
+  result = _shouldActuallyPolyfillES6Collection(collectionName);
+  cache[collectionName] = result;
+  return result;
 }
 
-/**
- * Given a constructor can we call it without `new`?
- *
- * @param {function} Collection
- */
-function isCallableWithoutNew(Collection) {
-  try {
-    Collection();
-  } catch (e) {
-    return false;
-  }
-  return true;
-}
-
-module.exports = shouldPolyfillES6Collection;
+module.exports = _shouldPolyfillES6Collection;

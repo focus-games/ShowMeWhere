@@ -1,18 +1,16 @@
 /**
- * Copyright (c) 2015-present, Facebook, Inc.
- * All rights reserved.
+ * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
  */
 
 #import "RCTSettingsManager.h"
 
-#import "RCTBridge.h"
-#import "RCTConvert.h"
-#import "RCTEventDispatcher.h"
-#import "RCTUtils.h"
+#import <React/RCTBridge.h>
+#import <React/RCTConvert.h>
+#import <React/RCTEventDispatcher.h>
+#import <React/RCTUtils.h>
 
 @implementation RCTSettingsManager
 {
@@ -24,6 +22,11 @@
 
 RCT_EXPORT_MODULE()
 
++ (BOOL)requiresMainQueueSetup
+{
+  return NO;
+}
+
 - (instancetype)init
 {
   return [self initWithUserDefaults:[NSUserDefaults standardUserDefaults]];
@@ -34,12 +37,12 @@ RCT_EXPORT_MODULE()
   if ((self = [super init])) {
     _defaults = defaults;
 
+
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(userDefaultsDidChange:)
                                                  name:NSUserDefaultsDidChangeNotification
                                                object:_defaults];
   }
-
   return self;
 }
 
@@ -48,22 +51,28 @@ RCT_EXPORT_MODULE()
   [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
+- (NSDictionary<NSString *, id> *)constantsToExport
+{
+  return [self getConstants];
+}
+
+- (NSDictionary<NSString *, id> *)getConstants
+{
+  return @{@"settings": RCTJSONClean([_defaults dictionaryRepresentation])};
+}
+
 - (void)userDefaultsDidChange:(NSNotification *)note
 {
   if (_ignoringUpdates) {
     return;
   }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   [_bridge.eventDispatcher
    sendDeviceEventWithName:@"settingsUpdated"
    body:RCTJSONClean([_defaults dictionaryRepresentation])];
-}
-
-- (NSDictionary *)constantsToExport
-{
-  return @{
-    @"settings": RCTJSONClean([_defaults dictionaryRepresentation])
-  };
+#pragma clang diagnostic pop
 }
 
 /**
@@ -76,9 +85,9 @@ RCT_EXPORT_METHOD(setValues:(NSDictionary *)values)
   [values enumerateKeysAndObjectsUsingBlock:^(NSString *key, id json, BOOL *stop) {
     id plist = [RCTConvert NSPropertyList:json];
     if (plist) {
-      [_defaults setObject:plist forKey:key];
+      [self->_defaults setObject:plist forKey:key];
     } else {
-      [_defaults removeObjectForKey:key];
+      [self->_defaults removeObjectForKey:key];
     }
   }];
 
@@ -89,7 +98,7 @@ RCT_EXPORT_METHOD(setValues:(NSDictionary *)values)
 /**
  * Remove some values from the settings.
  */
-RCT_EXPORT_METHOD(deleteValues:(NSStringArray *)keys)
+RCT_EXPORT_METHOD(deleteValues:(NSArray<NSString *> *)keys)
 {
   _ignoringUpdates = YES;
   for (NSString *key in keys) {
